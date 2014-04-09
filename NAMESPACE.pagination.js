@@ -8,6 +8,7 @@
     - jQuery 2.0.3
 
     TO DO:
+    - Clean up
 
 */
 
@@ -27,7 +28,7 @@ NAMESPACE.pagination = function (options, totalResults, resultsObject) {
         contentSelector: $('.pagination-container li'),
 
         // Class or ID of page controller
-        controls: $('.pagination'),
+        controls: $('ul.pagination'),
 
         // Pagination triggers
         controlTriggers: '.pagination li a',
@@ -79,17 +80,25 @@ NAMESPACE.pagination.prototype = {
 
     showPage: function (currentPage, totalResults, totalPages, resultsObject) {
         var self = this,
+            showingAll = false,
             rangeCap,
             rangeFloor,
+            nowShowingCopy,
             resultsContent;
 
         // Calculate the highest item to be displayed in our range of results
-        rangeCap = currentPage * self.options.maxResults;
+        if (currentPage == totalPages) {
+            rangeCap = totalResults;
+        } else {
+            rangeCap = currentPage * self.options.maxResults;
+        }
 
         // Calculate the lowest item to be displayed in our range of results
-        rangeFloor = rangeCap - self.options.maxResults;
+        rangeFloor = (currentPage * self.options.maxResults) - self.options.maxResults;
 
-        // Now only display the itmes that fall within our ranges
+        nowShowingCopy = '<p class="now-showing">' + (rangeFloor + 1) + ' - ' + rangeCap + ' of ' + totalResults + ' &nbsp;&nbsp;( <a href="#" class="show-select show-all">view all</a> )</p>';
+
+        // Empty the currently showing items
         self.options.contentContainer.empty();
 
         // For each item within the calculated range
@@ -103,37 +112,90 @@ NAMESPACE.pagination.prototype = {
         }
 
         // Kick off rendering of controls
-        self.renderControls(totalPages, totalResults, currentPage, resultsObject);
-
+        self.renderControls(totalPages, totalResults, currentPage, resultsObject, nowShowingCopy, showingAll);
     }, //END showPage
 
+    showAll: function (totalPages, totalResults, currentPage, resultsObject, nowShowingCopy) {
+        var self = this,
+            rangeFloor = 0,
+            showingAll = true,
+            rangeCap = totalResults;
 
-    renderControls: function (totalPages, totalResults, currentPage, resultsObject) {
-        var self = this;
 
-        // Determine if we're running for the first time or updating existing controls
-        if ((self.options.controls.find('li').length) !== 0) {
-            self.options.controls.empty();
-        }
+        nowShowingCopy = '<p class="now-showing">viewing all results &nbsp;&nbsp;( <a href="#" class="show-select show-less">view less</a> )</p>';
 
-        // Set up pagination page selectors
-        for (var i = 1; i <= totalPages; i++) {
-            if (i == currentPage) {
-                self.options.controls.append('<li>' + i + '</li>');
-            } else {
-                self.options.controls.append('<li><a href="#' + i + '">' + i + '</a></li>');
+        for (var i = rangeFloor; i < rangeCap; i++) {
+
+            // Check to see if object exisits
+            if (resultsObject[i]) {
+                // Append object to the container
+                self.options.contentContainer.append(resultsObject[i].markup);
             }
         }
 
+        // Kick off rendering of controls
+        self.renderControls(totalPages, totalResults, currentPage, resultsObject, nowShowingCopy, showingAll);
+    }, //END showAll
+
+    renderControls: function (totalPages, totalResults, currentPage, resultsObject, nowShowingCopy, showingAll) {
+        var self = this;
+
+        // Clear out all previous content
+        $('.now-showing').remove();
+        $('.show-select').remove();
+        self.options.controls.empty();
+
+        // Add correct now showing message
+        self.options.controls.before(nowShowingCopy);
+
+
+        // If not we're showing all items
+        if (showingAll !== true) {
+
+            // Set up pagination page selectors
+            for (var i = 1; i <= totalPages; i++) {
+                if (i == currentPage) {
+                    self.options.controls.append('<li>' + i + '</li>');
+                } else {
+                    self.options.controls.append('<li><a href="#' + i + '">' + i + '</a></li>');
+                }
+            }
+        }
+
+
+
         // Pagination controls click handling
         $(self.options.controlTriggers).click( function(event){
-
             event.preventDefault();
 
             // Call the pagination page set up, passing the desired page
-            self.showPage((this.href.split('#')[1]), totalResults, totalPages, resultsObject);
+            self.showPage(Number(this.href.split('#')[1]), totalResults, totalPages, resultsObject);
+
+            $('html,body').animate({
+                scrollTop: self.options.contentContainer.offset().top - 250
+            }, 500);
         });
 
+        $('.show-all').click( function(event){
+            event.preventDefault();
+
+            self.showAll(totalPages, totalResults, currentPage, resultsObject, nowShowingCopy);
+
+            $('html,body').animate({
+                scrollTop: self.options.contentContainer.offset().top - 250
+            }, 500);
+        });
+
+        $('.show-less').click( function(event){
+            event.preventDefault();
+
+            self.showPage(currentPage, totalResults, totalPages, resultsObject);
+
+            $('html,body').animate({
+                scrollTop: self.options.contentContainer.offset().top - 250
+            }, 500);
+        });
     } //END renderControls
 
 }; // END NAMESPACE.pagination.prototype
+
